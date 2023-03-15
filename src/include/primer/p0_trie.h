@@ -223,7 +223,7 @@ template <typename T> class TrieNodeWithValue : public TrieNode {
      * @param value
      */
     TrieNodeWithValue(TrieNode &&trieNode, T value)
-        : TrieNode(std::forward(trieNode)), value_(value) {
+        : TrieNode(std::forward<TrieNode>(trieNode)), value_(value) {
         SetEndNode(true);
     }
 
@@ -242,7 +242,9 @@ template <typename T> class TrieNodeWithValue : public TrieNode {
      * @param value Value of this node
      */
     TrieNodeWithValue(char key_char, T value)
-        : TrieNode(key_char), value_(value), is_end_(true) {}
+        : TrieNode(key_char), value_(value) {
+        IsEndNode(true);
+    }
 
     /**
      * @brief Destroy the Trie Node With Value object
@@ -335,6 +337,7 @@ class Trie {
             latch_.WUnlock();
             return false;
         }
+        // 如果这个字符已经创建，并且是终端节点,那就将他转化为TrieNodeWithValue
         if (end_node != nullptr) {
             auto new_node = new TrieNodeWithValue(std::move(**end_node), value);
             end_node->reset(new_node);
@@ -442,7 +445,7 @@ class Trie {
                 auto flag_node =
                     dynamic_cast<TrieNodeWithValue<T> *>(next_child->get());
                 if (flag_node == nullptr) {
-                    *success == false;
+                    *success = false;
                     break;
                 }
                 *success = true;
