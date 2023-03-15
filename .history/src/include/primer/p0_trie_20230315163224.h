@@ -29,7 +29,7 @@ namespace bustub {
  * TrieNode is a generic container for any node in Trie.
  */
 class TrieNode {
- public:
+   public:
     /**
      * TODO(P0): Add implementation
      *
@@ -177,7 +177,7 @@ class TrieNode {
      */
     void SetEndNode(bool is_end) { this->is_end_ = is_end; }
 
- protected:
+   protected:
     /** Key character of this trie node */
     char key_char_;
     /** whether this node marks the end of a key */
@@ -193,11 +193,11 @@ class TrieNode {
  */
 template <typename T>
 class TrieNodeWithValue : public TrieNode {
- private:
+   private:
     /* Value held by this trie node. */
     T value_;
 
- public:
+   public:
     /**
      * TODO(P0): Add implementation
      *
@@ -261,13 +261,13 @@ class TrieNodeWithValue : public TrieNode {
  * corresponding value can be any type.
  */
 class Trie {
- private:
+   private:
     /* Root node of the trie */
     std::unique_ptr<TrieNode> root_;
     /* Read-write lock for the trie */
     ReaderWriterLatch latch_;
 
- public:
+   public:
     /**
      * TODO(P0): Add implementation
      *

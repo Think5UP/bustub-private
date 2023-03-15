@@ -29,7 +29,7 @@ namespace bustub {
  * TrieNode is a generic container for any node in Trie.
  */
 class TrieNode {
- public:
+  public:
     /**
      * TODO(P0): Add implementation
      *
@@ -126,8 +126,8 @@ class TrieNode {
      * @return Pointer to unique_ptr of the inserted child node. If insertion
      * fails, return nullptr.
      */
-    std::unique_ptr<TrieNode> *InsertChildNode(
-        char key_char, std::unique_ptr<TrieNode> &&child) {
+    std::unique_ptr<TrieNode> *
+    InsertChildNode(char key_char, std::unique_ptr<TrieNode> &&child) {
         if (children_.count(key_char) > 0 || child->GetKeyChar() != key_char) {
             return nullptr;
         }
@@ -177,7 +177,7 @@ class TrieNode {
      */
     void SetEndNode(bool is_end) { this->is_end_ = is_end; }
 
- protected:
+  protected:
     /** Key character of this trie node */
     char key_char_;
     /** whether this node marks the end of a key */
@@ -191,13 +191,12 @@ class TrieNode {
  * TrieNodeWithValue is a node that mark the ending of a key, and it can
  * hold a value of any type T.
  */
-template <typename T>
-class TrieNodeWithValue : public TrieNode {
- private:
+template <typename T> class TrieNodeWithValue : public TrieNode {
+  private:
     /* Value held by this trie node. */
     T value_;
 
- public:
+  public:
     /**
      * TODO(P0): Add implementation
      *
@@ -261,13 +260,13 @@ class TrieNodeWithValue : public TrieNode {
  * corresponding value can be any type.
  */
 class Trie {
- private:
+  private:
     /* Root node of the trie */
     std::unique_ptr<TrieNode> root_;
     /* Read-write lock for the trie */
     ReaderWriterLatch latch_;
 
- public:
+  public:
     /**
      * TODO(P0): Add implementation
      *
@@ -307,8 +306,7 @@ class Trie {
      * @param value Value to be inserted
      * @return True if insertion succeeds, false if key already exists
      */
-    template <typename T>
-    bool Insert(const std::string &key, T value) {
+    template <typename T> bool Insert(const std::string &key, T value) {
         if (key.empty()) {
             return false;
         }
@@ -427,8 +425,7 @@ class Trie {
      * @param success Whether GetValue is successful or not
      * @return Value of type T if type matches
      */
-    template <typename T>
-    T GetValue(const std::string &key, bool *success) {
+    template <typename T> T GetValue(const std::string &key, bool *success) {
         if (!key.empty()) {
             *success = false;
         }
@@ -461,4 +458,4 @@ class Trie {
         return {};
     }
 };
-}  // namespace bustub
+} // namespace bustub

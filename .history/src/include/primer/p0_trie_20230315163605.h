@@ -193,11 +193,11 @@ class TrieNode {
  */
 template <typename T>
 class TrieNodeWithValue : public TrieNode {
- private:
+   private:
     /* Value held by this trie node. */
     T value_;
 
- public:
+   public:
     /**
      * TODO(P0): Add implementation
      *
@@ -261,13 +261,13 @@ class TrieNodeWithValue : public TrieNode {
  * corresponding value can be any type.
  */
 class Trie {
- private:
+   private:
     /* Root node of the trie */
     std::unique_ptr<TrieNode> root_;
     /* Read-write lock for the trie */
     ReaderWriterLatch latch_;
 
- public:
+   public:
     /**
      * TODO(P0): Add implementation
      *
