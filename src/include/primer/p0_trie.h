@@ -236,7 +236,7 @@ template <typename T> class TrieNodeWithValue : public TrieNode {
      */
     TrieNodeWithValue(char key_char, T value)
         : TrieNode(key_char), value_(value) {
-        IsEndNode(true);
+        SetEndNode(true);
     }
 
     /**
