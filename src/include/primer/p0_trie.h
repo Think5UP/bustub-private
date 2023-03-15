@@ -129,7 +129,7 @@ class TrieNode {
         if (children_.count(key_char) > 0 || child->GetKeyChar() != key_char) {
             return nullptr;
         }
-        children_[key_char] = std::move(child);
+        children_[key_char] = std::forward<std::unique_ptr<TrieNode>>(child);
         return &children_[key_char];
     }
 
@@ -146,7 +146,7 @@ class TrieNode {
     std::unique_ptr<TrieNode> *GetChildNode(char key_char) {
         auto it = children_.find(key_char);
         if (it != children_.end()) {
-            return &it->second;
+            return &(it->second);
         }
         return nullptr;
     }
@@ -311,17 +311,17 @@ class Trie {
         auto word = key.begin();
         auto child = &root_;
         while (word != key.end()) {
-            word++;
+            auto cur = word++;
             if (word == key.end()) {
                 break;
             }
             // 如果节点中没有word就创建它
-            if (!child->get()->HasChild(*word)) {
+            if (!child->get()->HasChild(*cur)) {
                 child = child->get()->InsertChildNode(
-                    *word, std::make_unique<TrieNode>(*word));
+                    *cur, std::make_unique<TrieNode>(*cur));
             } else {
                 // 如果有那就返回它本身
-                child = child->get()->GetChildNode(*word);
+                child = child->get()->GetChildNode(*cur);
             }
         }
         // 到达key的底部
@@ -387,7 +387,6 @@ class Trie {
             latch_.WUnlock();
             return false;
         }
-
         // 开始删除
         while (!v.empty()) {
             std::tuple<char, std::unique_ptr<TrieNode> *> temp = v.back();
@@ -395,6 +394,7 @@ class Trie {
             auto key = std::get<0>(temp);
             auto del_child = std::get<1>(temp);
             auto flag = (*del_child)->GetChildNode(key);
+            // 如果它还不是终端节点并且他还有子节点就继续
             if (flag != nullptr && (*flag)->HasChildren()) {
                 continue;
             }
@@ -428,16 +428,16 @@ class Trie {
         }
         latch_.RLock();
         auto child = &root_;
-        auto curr = key.begin();
-        while (curr != key.end()) {
-            curr++;
+        auto c = key.begin();
+        while (c != key.end()) {
+            auto curr = c++;
             auto next_child = child->get()->GetChildNode(*curr);
             if (next_child == nullptr) {
                 *success = false;
                 break;
             }
             // 下一个节点是终端节点，同时key到底最后
-            if (next_child->get()->IsEndNode() && curr == key.end()) {
+            if (next_child->get()->IsEndNode() && c == key.end()) {
                 auto flag_node =
                     dynamic_cast<TrieNodeWithValue<T> *>(next_child->get());
                 if (flag_node == nullptr) {
