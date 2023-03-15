@@ -37,8 +37,10 @@ class TrieNode {
      *
      * @param key_char Key character of this trie node
      */
-    explicit TrieNode(char key_char)
-        : key_char_(key_char), is_end_(false), children_{{key_char, nullptr}} {}
+    explicit TrieNode(char key_char) : key_char_(key_char) {
+        this->children_.clear();
+        SetEndNode(false);
+    }
 
     /**
      * TODO(P0): Add implementation
@@ -68,11 +70,7 @@ class TrieNode {
      * otherwise.
      */
     bool HasChild(char key_char) const {
-        auto it = children_.find(key_char);
-        if (it != children_.end()) {
-            return true;
-        }
-        return false;
+        return children_.find(key_char) != children_.end();
     }
 
     /**
@@ -84,12 +82,7 @@ class TrieNode {
      * @return True if this trie node has any child node, false if it has no
      * child node.
      */
-    bool HasChildren() const {
-        if (!children_.empty()) {
-            return false;
-        }
-        return true;
-    }
+    bool HasChildren() const { return !children_.empty(); }
 
     /**
      * TODO(P0): Add implementation
@@ -277,7 +270,10 @@ class Trie {
      * @brief Construct a new Trie object. Initialize the root node with '\0'
      * character.
      */
-    Trie() { root_.reset(new TrieNode('\0')); }
+    Trie() {
+        auto *root = new TrieNode('\0');
+        root_.reset(root);
+    }
 
     /**
      * TODO(P0): Add implementation
@@ -383,7 +379,7 @@ class Trie {
         while (c != key.end()) {
             auto curr = c++;
             if (child->get()->HasChild(*curr)) {
-                v.push_back(std::make_tuple(*curr, child));
+                v.emplace_back(std::make_tuple(*curr, child));
                 child = child->get()->GetChildNode(*curr);
                 continue;
             }
