@@ -22,8 +22,7 @@
 namespace bustub {
 
 template <typename K, typename V>
-ExtendibleHashTable<K, V>::ExtendibleHashTable(size_t bucket_size)
-    : bucket_size_(bucket_size) {
+ExtendibleHashTable<K, V>::ExtendibleHashTable(size_t bucket_size) : bucket_size_(bucket_size) {
   dir_.push_back(std::make_shared<Bucket>(bucket_size, 0));
 }
 
@@ -81,53 +80,53 @@ auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
 }
 
 template <typename K, typename V>
-void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
-  std::lock_guard<std::mutex> guard(latch_);
-  // 判断桶是不是已经满了
-  while (dir_[IndexOf(key)]->IsFull()) {
-    auto index = IndexOf(key);
-    auto target_bucket = dir_[index];
-    // 全局深度和局部深度一样那就扩容
-    if (GetGlobalDepth() == target_bucket->GetDepth()) {
-      // 全局深度+1
-      global_depth_++;
-      // 目录翻倍
-      int capacity = dir_.size();
-      dir_.resize(capacity << 1);
-      // 翻倍后新产生的目录指向原本的桶
-      for (int inx = 0; inx < capacity; ++inx) {
-        dir_[capacity + inx] = dir_[inx];
-      }
-    }
-    // 分裂桶
-    // 先将局部深度+1
-    int mask = 1 << target_bucket->GetDepth();
-    // 用原本目标的局部深度+1创建出1和0两个桶
-    auto bucket_0 = std::make_shared<Bucket>(bucket_size_, target_bucket->GetDepth() + 1);
-    auto bucket_1 = std::make_shared<Bucket>(bucket_size_, target_bucket->GetDepth() + 1);
-    // 遍历桶的list，将key的哈希值的最低位是0还是1分发给新桶
-    for (const auto &item : target_bucket->GetItems()) {
-      size_t hash_key = std::hash<K>()(item.first);
-      // 判断局部深度的最低位和当前桶key的哈希值，如果不是0那就将他插入到one_Bucket中
-      if ((hash_key & mask) != 0U) {
-        bucket_1->Insert(item.first, item.second);
-      } else {
-        bucket_0->Insert(item.first, item.second);
-      }
-    }
-    // 确保这两个桶都可用
-    if (!bucket_1->GetItems().empty() && !bucket_0->GetItems().empty()) {
-      ++num_buckets_;
-    }
-    for (size_t i = 0; i < dir_.size(); ++i) {
-      // 当前下标最低位与上mask，为0就让dir_[i]指向zeroBucket,反之同理
-      if ((i & mask) != 0U) {
-        dir_[i] = bucket_1;
-      } else {
-        dir_[i] = bucket_0;
-      }
-    }
-  }
+   void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
+     std::lock_guard<std::mutex> guard(latch_);
+     // 判断桶是不是已经满了
+     while (dir_[IndexOf(key)]->IsFull()) {
+       auto index = IndexOf(key);
+       auto target_bucket = dir_[index];
+       // 全局深度和局部深度一样那就扩容
+       if (GetGlobalDepth() == target_bucket->GetDepth()) {
+         // 全局深度+1
+         global_depth_++;
+         // 目录翻倍
+         int capacity = dir_.size();
+         dir_.resize(capacity << 1);
+         // 翻倍后新产生的目录指向原本的桶
+         for (int inx = 0; inx < capacity; ++inx) {
+           dir_[capacity + inx] = dir_[inx];
+         }
+       }
+       // 分裂桶
+       // 先将局部深度+1
+       int mask = 1 << target_bucket->GetDepth();
+       // 用原本目标的局部深度+1创建出1和0两个桶
+       auto bucket_0 = std::make_shared<Bucket>(bucket_size_, target_bucket->GetDepth() + 1);
+       auto bucket_1 = std::make_shared<Bucket>(bucket_size_, target_bucket->GetDepth() + 1);
+       // 遍历桶的list，将key的哈希值的最低位是0还是1分发给新桶
+       for (const auto &item : target_bucket->GetItems()) {
+         size_t hash_key = std::hash<K>()(item.first);
+         // 判断局部深度的最低位和当前桶key的哈希值，如果不是0那就将他插入到one_Bucket中
+         if ((hash_key & mask) != 0U) {
+           bucket_1->Insert(item.first, item.second);
+         } else {
+           bucket_0->Insert(item.first, item.second);
+         }
+       }
+       // 确保这两个桶都可用
+       if (!bucket_1->GetItems().empty() && !bucket_0->GetItems().empty()) {
+         ++num_buckets_;
+       }
+       for (size_t i = 0; i < dir_.size(); ++i) {
+         // 当前下标最低位与上mask，为0就让dir_[i]指向zeroBucket,反之同理
+         if ((i & mask) != 0U) {
+           dir_[i] = bucket_1;
+         } else {
+           dir_[i] = bucket_0;
+         }
+       }
+     }
 
   // 获取目标桶的下标
   auto index = IndexOf(key);
