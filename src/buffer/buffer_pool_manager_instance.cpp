@@ -29,11 +29,6 @@ BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, DiskManag
   for (size_t i = 0; i < pool_size_; ++i) {
     free_list_.emplace_back(static_cast<int>(i));
   }
-
-  // TODO(students): remove this line after you have implemented the buffer pool manager
-  throw NotImplementedException(
-      "BufferPoolManager is not implemented yet. If you have finished implementing BPM, please remove the throw "
-      "exception line in `buffer_pool_manager_instance.cpp`.");
 }
 
 BufferPoolManagerInstance::~BufferPoolManagerInstance() {
@@ -42,17 +37,176 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
   delete replacer_;
 }
 
-auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * { return nullptr; }
+auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
+  std::lock_guard<std::mutex> guard(latch_);
+  // 先访问所有的frame如果引用计数不为0那就说明有这个frame不可被驱逐
+  // 如果所有的frame都不可被驱逐直接返回nullptr
+  size_t i = 0;
+  for (; i < pool_size_; ++i) {
+    if (pages_[i].pin_count_ == 0) {
+      break;
+    }
+  }
+  if (i == pool_size_) {
+    return nullptr;
+  }
+  frame_id_t frame_id;
+  // 空闲链表不为空，代表frame还有空闲那就直接获取frame_id
+  if (!free_list_.empty()) {
+    frame_id = free_list_.back();
+    free_list_.pop_back();
+  } else {
+    // 如果全部都没有办法驱逐那就返回nullptr
+    if (!replacer_->Evict(&frame_id)) {
+      return nullptr;
+    }
+    // 获取驱逐的frame的page_id
+    page_id_t evict_page_id = pages_[frame_id].GetPageId();
+    // 判断是否驱逐的是脏页
+    if (pages_[frame_id].IsDirty()) {
+      // 将驱逐frame的数据落回磁盘
+      disk_manager_->WritePage(evict_page_id, pages_[frame_id].GetData());
+      pages_[frame_id].is_dirty_ = false;
+    }
+    pages_[frame_id].ResetMemory();
+    page_table_->Remove(evict_page_id);
+  }
+  // 分配页id
+  *page_id = AllocatePage();
+  // 将页id和frame_id插入到哈希表中
+  page_table_->Insert(*page_id, frame_id);
+  // 让replacer_访问一遍，同时将这一个frame设置为不可驱逐
+  replacer_->RecordAccess(frame_id);
+  replacer_->SetEvictable(frame_id, false);
 
-auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * { return nullptr; }
+  // 在页中记录page_id，同时将引用计数设置为1表示不可被驱逐
+  pages_[frame_id].page_id_ = *page_id;
+  pages_[frame_id].pin_count_ = 1;
 
-auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool { return false; }
+  return &pages_[frame_id];
+}
 
-auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool { return false; }
+auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
+  std::lock_guard<std::mutex> guard(latch_);
+  frame_id_t frame_id;
+  // 先看page_id是否已经在缓冲池中
+  if (page_table_->Find(page_id, frame_id)) {
+    pages_[frame_id].pin_count_++;
+    replacer_->RecordAccess(frame_id);
+    replacer_->SetEvictable(frame_id, false);
+    return &pages_[frame_id];
+  }
 
-void BufferPoolManagerInstance::FlushAllPgsImp() {}
+  // 因为缓冲池有，之后要么插入要么替换，先做一层判断，看是否所有的frame都不可被驱逐
+  size_t i = 0;
+  for (; i < pool_size_; ++i) {
+    if (pages_[i].pin_count_ == 0) {
+      break;
+    }
+  }
+  if (i == pool_size_) {
+    return nullptr;
+  }
 
-auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool { return false; }
+  // 缓冲池中没有，但是空闲链表不为空就插入，空闲链表为空就用替换器替换
+  if (!free_list_.empty()) {
+    frame_id = free_list_.back();
+    free_list_.pop_back();
+  } else {
+    if (!replacer_->Evict(&frame_id)) {
+      return nullptr;
+    }
+    // 驱逐的page_id
+    page_id_t evict_page_id = pages_[frame_id].GetPageId();
+    if (pages_[frame_id].IsDirty()) {
+      // 落盘
+      disk_manager_->WritePage(evict_page_id, pages_[frame_id].GetData());
+      pages_[frame_id].is_dirty_ = false;
+    }
+    pages_[frame_id].ResetMemory();
+    page_table_->Remove(evict_page_id);
+  }
+
+  // page_id = AllocatePage();
+  page_table_->Insert(page_id, frame_id);
+  pages_[frame_id].page_id_ = page_id;
+  pages_[frame_id].pin_count_ = 1;
+
+  disk_manager_->ReadPage(page_id, pages_[frame_id].GetData());
+
+  replacer_->RecordAccess(frame_id);
+  replacer_->SetEvictable(frame_id, false);
+
+  return &pages_[frame_id];
+}
+
+auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool {
+  std::lock_guard<std::mutex> guard(latch_);
+  frame_id_t frame_id;
+  // 如果缓冲池中找不到page_id获取page_id的格式不合法，返回false
+  if (!page_table_->Find(page_id, frame_id) || page_id == INVALID_PAGE_ID) {
+    return false;
+  }
+  // 在缓冲池中找到了，先查看他的引用计数
+  if (pages_[frame_id].GetPinCount() <= 0) {
+    return false;
+  }
+  if (is_dirty) {
+    pages_[frame_id].is_dirty_ = is_dirty;
+  }
+  // 引用计数减一，如果等于0了那就代表这个frame可以被驱逐，evict设置为true
+  pages_[frame_id].pin_count_--;
+  if (pages_[frame_id].GetPinCount() == 0) {
+    replacer_->SetEvictable(frame_id, true);
+  }
+  return true;
+}
+
+auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
+  std::lock_guard<std::mutex> guard(latch_);
+  frame_id_t frame_id;
+  // 如果缓冲池中找不到page_id获取page_id的格式不合法，返回false
+  if (!page_table_->Find(page_id, frame_id) || page_id == INVALID_PAGE_ID) {
+    return false;
+  }
+
+  disk_manager_->WritePage(page_id, pages_[frame_id].GetData());
+  pages_[frame_id].is_dirty_ = false;
+  return true;
+}
+
+void BufferPoolManagerInstance::FlushAllPgsImp() {
+  std::lock_guard<std::mutex> guard(latch_);
+  for (size_t frame_id = 0; frame_id < pool_size_; ++frame_id) {
+    FlushPgImp(pages_[frame_id].GetPageId());
+  }
+}
+
+auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
+  std::lock_guard<std::mutex> guard(latch_);
+  frame_id_t frame_id;
+  // 判断能否在缓冲池中找到page_id以及page_id的合法性
+  if (!page_table_->Find(page_id, frame_id) || page_id == INVALID_PAGE_ID) {
+    return false;
+  }
+  // 如果引用计数不为0不能删除,直接返回
+  if (pages_[frame_id].GetPinCount() > 0) {
+    return false;
+  }
+  replacer_->Remove(frame_id);
+
+  pages_[frame_id].ResetMemory();
+  pages_[frame_id].pin_count_ = 0;
+  pages_[frame_id].is_dirty_ = false;
+  pages_[frame_id].page_id_ = INVALID_PAGE_ID;
+
+  page_table_->Remove(page_id);
+  free_list_.emplace_front(frame_id);
+
+  DeallocatePage(page_id);
+
+  return true;
+}
 
 auto BufferPoolManagerInstance::AllocatePage() -> page_id_t { return next_page_id_++; }
 

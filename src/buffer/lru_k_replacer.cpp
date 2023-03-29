@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_k_replacer.h"
+#include "common/logger.h"
 
 namespace bustub {
 
@@ -40,13 +41,14 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       // *it指的是要被淘汰的frame_it
       *frame_id = *it;
       access_count_[*frame_id] = 0;
-      history_list_.erase(history_map_[*frame_id]);
-      history_map_.erase(*frame_id);
+      cache_list_.erase(cache_map_[*frame_id]);
+      cache_map_.erase(*frame_id);
       is_evictable_[*frame_id] = false;
       curr_size_--;
       return true;
     }
   }
+  LOG_INFO("frame_id = %d", *frame_id);
   return false;
 }
 
@@ -109,6 +111,9 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   std::lock_guard<std::mutex> guard(latch_);
   if (frame_id > static_cast<int>(replacer_size_)) {
     throw std::exception();
+  }
+  if (access_count_[frame_id] == 0) {
+    return;
   }
   // 判断当前frame_id是在缓存链表还是历史链表中,然后通过哈希表获取迭代器位置从链表中删除再通过frame_id从哈希表中删除
   if (access_count_[frame_id] >= k_) {
