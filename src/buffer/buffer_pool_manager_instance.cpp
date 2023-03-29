@@ -187,7 +187,7 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   frame_id_t frame_id;
   // 判断能否在缓冲池中找到page_id以及page_id的合法性
   if (!page_table_->Find(page_id, frame_id) || page_id == INVALID_PAGE_ID) {
-    return false;
+    return true;
   }
   // 如果引用计数不为0不能删除,直接返回
   if (pages_[frame_id].GetPinCount() > 0) {

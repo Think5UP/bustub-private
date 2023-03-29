@@ -115,10 +115,7 @@ void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
         bucket_0->Insert(item.first, item.second);
       }
     }
-    // 确保这两个桶都可用
-    if (!bucket_1->GetItems().empty() && !bucket_0->GetItems().empty()) {
-      num_buckets_++;
-    }
+    num_buckets_++;
     for (size_t i = 0; i < dir_.size(); ++i) {
       if (dir_[i] == target_bucket) {  // 这里是目标桶 ，因为分裂了产生了桶1和桶0所以需要对原本的数据进行重新分配数据
         // 当前下标最低位与上mask，为0就让dir_[i]指向zeroBucket,反之同理
