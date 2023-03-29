@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_k_replacer.h"
-#include "common/logger.h"
 
 namespace bustub {
 
@@ -48,7 +47,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       return true;
     }
   }
-  LOG_INFO("frame_id = %d", *frame_id);
   return false;
 }
 
