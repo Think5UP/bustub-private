@@ -10,11 +10,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <mutex>
 #include <queue>
 #include <string>
 #include <vector>
 
 #include "concurrency/transaction.h"
+#include "include/common/rwlatch.h"
 #include "storage/index/index_iterator.h"
 #include "storage/page/b_plus_tree_internal_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
@@ -22,6 +24,8 @@
 namespace bustub {
 
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
+
+enum Operation { READ, INSERT, DELETE };
 
 /**
  * Main class providing the API for the Interactive B+ Tree.
@@ -47,12 +51,19 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
+  auto InsertInParent(Page *leaf_page, const KeyType &key, Page *brother_page, Transaction *transaction) -> void;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
+  auto DeleteEntry(Page *&page, const KeyType &key, Transaction *transaction) -> void;
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
+  auto FindLeafPage(const KeyType &key, Transaction *transaction, Operation op) -> Page *;
+
+  auto GetMaxSize(BPlusTreePage *page) const -> int;
+  auto IsSafe(Page *page, Operation operation) -> bool;
+  auto UnlockAndUnpin(Transaction *transaction, Operation op) -> void;
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
@@ -89,6 +100,8 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+
+  std::mutex latch_;
 };
 
 }  // namespace bustub

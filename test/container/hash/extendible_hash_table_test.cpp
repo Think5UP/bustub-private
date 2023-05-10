@@ -13,9 +13,9 @@ namespace bustub {
 TEST(ExtendibleHashTableTest, SampleTest) {
   auto table = std::make_unique<ExtendibleHashTable<int, std::string>>(2);
 
-  table->Insert(1, "a"); // 1
-  table->Insert(2, "b"); // 0 桶满了，分裂出 1 和 0
-  table->Insert(3, "c"); //
+  table->Insert(1, "a");  // 1
+  table->Insert(2, "b");  // 0 桶满了，分裂出 1 和 0
+  table->Insert(3, "c");  //
   table->Insert(4, "d");
   table->Insert(5, "e");
   table->Insert(6, "f");

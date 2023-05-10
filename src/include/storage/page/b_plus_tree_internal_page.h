@@ -12,6 +12,7 @@
 
 #include <queue>
 
+#include "concurrency/transaction.h"
 #include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
@@ -39,8 +40,31 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void Init(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID, int max_size = INTERNAL_PAGE_SIZE);
 
   auto KeyAt(int index) const -> KeyType;
-  void SetKeyAt(int index, const KeyType &key);
+  auto SetKeyAt(int index, const KeyType &key) -> void;
+  auto KeyIndex(const KeyType &key, const KeyComparator &comparator) -> int;
   auto ValueAt(int index) const -> ValueType;
+  void SetValueAt(int index, const ValueType &value);
+
+  // 查找
+  auto Lookup(const KeyType &key, const KeyComparator &comparator) -> ValueType;
+  // 插入
+  auto Insert(const MappingType &value, const KeyComparator &comparator) -> void;
+  auto InsertFirst(const KeyType &key, const ValueType &value) -> void;
+  // 删除
+  auto Delete(const KeyType &key, const KeyComparator &comparator) -> bool;
+  auto DeleteFirst() -> void;
+  // 获取兄弟页面
+  auto GetBrotherPage(page_id_t child_page_id, Page *&brother_page, KeyType &key, bool &isPre,
+                      BufferPoolManager *buffer_pool_manager) -> void;
+  // 事务中获取兄弟页面
+  auto GetBrotherPageRW(page_id_t child_page_id, Page *&brother_page, KeyType &key, bool &isPre,
+                        BufferPoolManager *buffer_pool_manager, Transaction *transaction) -> void;
+
+  //分裂
+  auto Split(const KeyType &key, Page *brother_page, Page *parent_page, const KeyComparator &comparator,
+             BufferPoolManager *buffer_pool_manager) -> void;
+  // 合并
+  auto Merge(const KeyType &key, Page *right_page, BufferPoolManager *buffer_pool_manager) -> void;
 
  private:
   // Flexible array member for page data.

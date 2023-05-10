@@ -85,6 +85,7 @@ void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
   // 判断桶是不是已经满了
   while (dir_[IndexOf(key)]->IsFull()) {
     size_t index = IndexOf(key);
+    // 获取下标位置的桶以及桶的局部深度
     auto target_bucket = dir_[index];
     int bucket_localdepth = target_bucket->GetDepth();
     // 全局深度和局部深度一样那就扩容
@@ -127,12 +128,11 @@ void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
       }
     }
   }
-
   // 获取目标桶的下标
   auto index = IndexOf(key);
   auto target_bucket = dir_[index];
 
-  // 如果key已经存在，更新
+  // 扫描桶找到key对应的value更新value
   for (auto &it : target_bucket->GetItems()) {
     if (it.first == key) {
       it.second = value;

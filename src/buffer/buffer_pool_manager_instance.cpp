@@ -51,7 +51,8 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
     return nullptr;
   }
   frame_id_t frame_id;
-  // 空闲链表不为空，代表frame还有空闲那就直接获取frame_id
+  // 空闲链表不为空，代表frame还有空闲那就直接获取空闲链表尾部存储的frame_id
+  //因为每次都只是取出链表尾部的frame_id 当被使用就应该从链表中弹出
   if (!free_list_.empty()) {
     frame_id = free_list_.back();
     free_list_.pop_back();
@@ -140,6 +141,7 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   return &pages_[frame_id];
 }
 
+// 对给定page的pin_count不为0的话就减一如果减完发现为0那就在replacer中将这个页设置为可驱逐
 auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool {
   std::lock_guard<std::mutex> guard(latch_);
   frame_id_t frame_id;
@@ -147,7 +149,7 @@ auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> 
   if (!page_table_->Find(page_id, frame_id) || page_id == INVALID_PAGE_ID) {
     return false;
   }
-  // 在缓冲池中找到了，先查看他的引用计数
+  // 在缓冲池中找到了，先查看他的引用计数如果已经已经小于等于0了说明可以被驱逐了不再需要后续操作了
   if (pages_[frame_id].GetPinCount() <= 0) {
     return false;
   }
@@ -201,6 +203,7 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   pages_[frame_id].page_id_ = INVALID_PAGE_ID;
 
   page_table_->Remove(page_id);
+  //将新空闲的frame_id插入到链表头
   free_list_.emplace_front(frame_id);
 
   DeallocatePage(page_id);
