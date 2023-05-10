@@ -396,8 +396,8 @@ auto BPLUSTREE_TYPE::DeleteEntry(Page *&page, const KeyType &key, Transaction *t
       DeleteEntry(parent_page, parent_key, transaction);
 
     } else {
-      //借用brother的，只需要调整不需要收缩
-      if (ispre) { // 兄弟节点在左边的情况
+      // 借用brother的，只需要调整不需要收缩
+      if (ispre) {  // 兄弟节点在左边的情况
         if (brother_node->IsRootPage()) {
           auto brother_inter_node = reinterpret_cast<InternalPage *>(brother_page->GetData());
           auto curr_inter_node = reinterpret_cast<InternalPage *>(page->GetData());
@@ -450,7 +450,7 @@ auto BPLUSTREE_TYPE::DeleteEntry(Page *&page, const KeyType &key, Transaction *t
           int index = parent_inter_node->KeyIndex(parent_key, comparator_);
           parent_inter_node->SetKeyAt(index, last_key);
         }
-      } else { // 兄弟节点在右边的情况
+      } else {  // 兄弟节点在右边的情况
         if (brother_node->IsRootPage()) {
           auto brother_inter_node = reinterpret_cast<InternalPage *>(brother_page->GetData());
           auto curr_inter_node = reinterpret_cast<InternalPage *>(page->GetData());

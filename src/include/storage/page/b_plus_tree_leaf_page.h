@@ -67,7 +67,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
 
   auto KeyIndex(const KeyType &key, const KeyComparator &comparator) -> int;
 
-  auto GetPair(int index) -> MappingType&;
+  auto GetPair(int index) -> MappingType &;
 
  private:
   page_id_t next_page_id_;

@@ -60,7 +60,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto GetBrotherPageRW(page_id_t child_page_id, Page *&brother_page, KeyType &key, bool &isPre,
                         BufferPoolManager *buffer_pool_manager, Transaction *transaction) -> void;
 
-  //分裂
+  // 分裂
   auto Split(const KeyType &key, Page *brother_page, Page *parent_page, const KeyComparator &comparator,
              BufferPoolManager *buffer_pool_manager) -> void;
   // 合并

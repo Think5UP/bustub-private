@@ -52,7 +52,7 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   }
   frame_id_t frame_id;
   // 空闲链表不为空，代表frame还有空闲那就直接获取空闲链表尾部存储的frame_id
-  //因为每次都只是取出链表尾部的frame_id 当被使用就应该从链表中弹出
+  // 因为每次都只是取出链表尾部的frame_id 当被使用就应该从链表中弹出
   if (!free_list_.empty()) {
     frame_id = free_list_.back();
     free_list_.pop_back();
@@ -203,7 +203,7 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   pages_[frame_id].page_id_ = INVALID_PAGE_ID;
 
   page_table_->Remove(page_id);
-  //将新空闲的frame_id插入到链表头
+  // 将新空闲的frame_id插入到链表头
   free_list_.emplace_front(frame_id);
 
   DeallocatePage(page_id);

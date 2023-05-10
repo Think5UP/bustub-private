@@ -15,8 +15,7 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::IndexIterator() : page_id_(INVALID_PAGE_ID) {}
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator(page_id_t page_id, Page *curr_page, int index,
-                                  BufferPoolManager *buffer_pool_manager)
+INDEXITERATOR_TYPE::IndexIterator(page_id_t page_id, Page *curr_page, int index, BufferPoolManager *buffer_pool_manager)
     : page_id_(page_id), curr_page_(curr_page), index_(index), buffer_pool_manager_(buffer_pool_manager) {}
 
 INDEX_TEMPLATE_ARGUMENTS
