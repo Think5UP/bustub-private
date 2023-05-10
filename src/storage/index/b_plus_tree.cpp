@@ -541,7 +541,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
   if (IsEmpty()) {
     return INDEXITERATOR_TYPE();
   }
-  auto leaf_page = FindLeafPage(key, nullptr, READ);
+  Page *leaf_page = FindLeafPage(key, nullptr, READ);
   auto leaf_node = reinterpret_cast<LeafPage *>(leaf_page->GetData());
   int index;
   for (index = 0; index < leaf_node->GetSize(); ++index) {
