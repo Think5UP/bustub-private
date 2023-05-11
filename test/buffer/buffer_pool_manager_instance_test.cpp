@@ -58,6 +58,7 @@ TEST(BufferPoolManagerInstanceTest, BinaryDataTest) {
 
   // Scenario: We should be able to create new pages until we fill up the buffer pool.
   for (size_t i = 1; i < buffer_pool_size; ++i) {
+    EXPECT_NE(nullptr, bpm->NewPage(&page_id_temp));
   }
 
   // Scenario: Once the buffer pool is full, we should not be able to create any new pages.
