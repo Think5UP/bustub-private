@@ -233,50 +233,43 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertInParent(bustub::Page *leaf_page, const KeyType &key, bustub::Page *brother_page,
                                     bustub::Transaction *transaction) -> void {
-  auto leaf_node = reinterpret_cast<LeafPage *>(leaf_page->GetData());
-
-  // 如果当前节点为最顶层，则需要创建一个新的根节点，整个b+树增高一层
-  if (leaf_node->GetParentPageId() == INVALID_PAGE_ID) {
-    // 创建新的根节点
+  auto tree_page = reinterpret_cast<BPlusTreePage *>(leaf_page->GetData());
+  // 如果当前节点为最顶层，则需要创建一个新的根节点，整个b+t增高一层
+  if (tree_page->GetParentPageId() == INVALID_PAGE_ID) {
     page_id_t new_page_id;
     Page *new_page = buffer_pool_manager_->NewPage(&new_page_id);
-    auto new_node = reinterpret_cast<InternalPage *>(new_page->GetData());
-    new_node->Init(new_page_id, INVALID_PAGE_ID, internal_max_size_);
-    new_node->SetValueAt(0, leaf_node->GetPageId());
-    new_node->SetKeyAt(1, key);
-    new_node->SetValueAt(1, brother_page->GetPageId());
-    new_node->IncreaseSize(2);
-    // 更新叶节点和兄弟节点的父节点id
-    auto leaf_page_node = reinterpret_cast<BPlusTreePage *>(leaf_page->GetData());
-    leaf_page_node->SetParentPageId(new_page_id);
-    auto brother_page_node = reinterpret_cast<BPlusTreePage *>(brother_page->GetData());
-    brother_page_node->SetParentPageId(new_page_id);
+    auto new_root = reinterpret_cast<InternalPage *>(new_page->GetData());
+    new_root->Init(new_page_id, INVALID_PAGE_ID, internal_max_size_);
+    new_root->SetValueAt(0, leaf_page->GetPageId());
+    new_root->SetKeyAt(1, key);
+    new_root->SetValueAt(1, brother_page->GetPageId());
+    new_root->IncreaseSize(2);
+    auto page_leaf_node = reinterpret_cast<BPlusTreePage *>(leaf_page->GetData());
+    page_leaf_node->SetParentPageId(new_page_id);
+    auto page_bother_node = reinterpret_cast<BPlusTreePage *>(brother_page->GetData());
+    page_bother_node->SetParentPageId(new_page_id);
     root_page_id_ = new_page_id;
     buffer_pool_manager_->UnpinPage(new_page_id, true);
     return;
   }
-  // 如果父节点未满直接插入
-  page_id_t parent_page_id = leaf_node->GetParentPageId();
-  Page *parent_page = buffer_pool_manager_->FetchPage(parent_page_id);
-  // 获取父节点和兄弟节点
+  page_id_t parent_id = tree_page->GetParentPageId();
+  Page *parent_page = buffer_pool_manager_->FetchPage(parent_id);
   auto parent_node = reinterpret_cast<InternalPage *>(parent_page->GetData());
-  auto brother_node = reinterpret_cast<InternalPage *>(brother_page->GetData());
-  // size是否小于maxsize 是直接插入
+  auto page_bother_node = reinterpret_cast<InternalPage *>(brother_page->GetData());
   if (parent_node->GetSize() < parent_node->GetMaxSize()) {
     parent_node->Insert(std::make_pair(key, brother_page->GetPageId()), comparator_);
-    brother_node->SetParentPageId(parent_page_id);
-    buffer_pool_manager_->UnpinPage(parent_page_id, true);
+    page_bother_node->SetParentPageId(parent_id);
+    buffer_pool_manager_->UnpinPage(parent_id, true);
     return;
   }
-  // 如果父节点满了就需要对父节点也进行分裂
-  page_id_t parent_brother_page_id;
-  Page *parent_brother_page = buffer_pool_manager_->NewPage(&parent_brother_page_id);
-  auto parent_brother_node = reinterpret_cast<InternalPage *>(parent_brother_page->GetData());
-  parent_brother_node->Init(parent_brother_page_id, INVALID_PAGE_ID, internal_max_size_);
-  parent_node->Split(key, brother_page, parent_brother_page, comparator_, buffer_pool_manager_);
-  InsertInParent(parent_page, parent_brother_node->KeyAt(0), parent_brother_page, transaction);
-  buffer_pool_manager_->UnpinPage(parent_brother_page_id, true);
-  buffer_pool_manager_->UnpinPage(parent_page_id, true);
+  page_id_t page_parent_bother_id;
+  Page *page_parent_bother = buffer_pool_manager_->NewPage(&page_parent_bother_id);
+  auto parent_bother_node = reinterpret_cast<InternalPage *>(page_parent_bother->GetData());
+  parent_bother_node->Init(page_parent_bother_id, INVALID_PAGE_ID, internal_max_size_);
+  parent_node->Split(key, brother_page, page_parent_bother, comparator_, buffer_pool_manager_);
+  InsertInParent(parent_page, parent_bother_node->KeyAt(0), page_parent_bother, transaction);
+  buffer_pool_manager_->UnpinPage(page_parent_bother_id, true);
+  buffer_pool_manager_->UnpinPage(parent_id, true);
 }
 
 /*****************************************************************************
