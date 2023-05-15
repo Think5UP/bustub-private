@@ -23,7 +23,8 @@ namespace bustub {
 
 template <typename K, typename V>
 ExtendibleHashTable<K, V>::ExtendibleHashTable(size_t bucket_size) : bucket_size_(bucket_size) {
-  dir_.push_back(std::make_shared<Bucket>(bucket_size, 0));
+  std::shared_ptr<Bucket> b(new Bucket(bucket_size, global_depth_));
+  dir_.push_back(b);
 }
 
 template <typename K, typename V>
@@ -67,80 +68,54 @@ auto ExtendibleHashTable<K, V>::GetNumBucketsInternal() const -> int {
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
-  std::lock_guard<std::mutex> guard(latch_);
+  std::scoped_lock<std::mutex> lock(latch_);
   size_t index = IndexOf(key);
-  return dir_[index]->Find(key, value);
+  return static_cast<bool>(dir_[index]->Find(key, value));
 }
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
-  std::lock_guard<std::mutex> guard(latch_);
+  std::scoped_lock<std::mutex> lock(latch_);
   size_t index = IndexOf(key);
-  return dir_[index]->Remove(key);
+  return static_cast<bool>(dir_[index]->Remove(key));
 }
 
 template <typename K, typename V>
 void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
-  std::lock_guard<std::mutex> guard(latch_);
-  // 判断桶是不是已经满了
-  while (dir_[IndexOf(key)]->IsFull()) {
+  std::scoped_lock<std::mutex> lock(latch_);
+
+  while (true) {
     size_t index = IndexOf(key);
-    // 获取下标位置的桶以及桶的局部深度
-    auto target_bucket = dir_[index];
-    int bucket_localdepth = target_bucket->GetDepth();
-    // 全局深度和局部深度一样那就扩容
-    if (global_depth_ == target_bucket->GetDepth()) {
-      // 目录翻倍
-      int capacity = dir_.size();
-      dir_.resize(capacity << 1);
-      // 翻倍后新产生的目录指向原本的桶
-      for (int inx = 0; inx < capacity; ++inx) {
-        dir_[capacity + inx] = dir_[inx];
-      }
-      // 全局深度+1
+    if (dir_[index]->Insert(key, value)) {
+      return;
+    }
+    int local_depth = dir_[index]->GetDepth();
+    if (local_depth == global_depth_) {
       global_depth_++;
-    }
-    // 分裂桶
-    // 先将局部深度+1
-    int mask = 1 << bucket_localdepth;
-    // 用原本目标的局部深度+1创建出1和0两个桶
-    auto bucket_0 = std::make_shared<Bucket>(bucket_size_, bucket_localdepth + 1);
-    auto bucket_1 = std::make_shared<Bucket>(bucket_size_, bucket_localdepth + 1);
-    // 遍历桶的list，将key的哈希值的最低位是0还是1分发给新桶
-    for (auto &item : target_bucket->GetItems()) {
-      size_t hash_key = std::hash<K>()(item.first);
-      // 判断局部深度的最低位和当前桶key的哈希值，如果不是0那就将他插入到one_Bucket中
-      if ((hash_key & mask) != 0U) {
-        bucket_1->Insert(item.first, item.second);
-      } else {
-        bucket_0->Insert(item.first, item.second);
+      dir_.resize(dir_.size() * 2);
+      for (size_t i = dir_.size() / 2; i < dir_.size(); i++) {
+        dir_[i] = dir_[i - dir_.size() / 2];
       }
     }
+
+    dir_[index]->IncrementDepth();
+    std::shared_ptr<Bucket> b(new Bucket(bucket_size_, dir_[index]->GetDepth()));
     num_buckets_++;
-    for (size_t i = 0; i < dir_.size(); ++i) {
-      if (dir_[i] == target_bucket) {  // 这里是目标桶 ，因为分裂了产生了桶1和桶0所以需要对原本的数据进行重新分配数据
-        // 当前下标最低位与上mask，为0就让dir_[i]指向zeroBucket,反之同理
-        if ((i & mask) != 0U) {
-          dir_[i] = bucket_1;
-        } else {
-          dir_[i] = bucket_0;
+    auto list = dir_[index]->GetItems();
+    dir_[index]->Clear();
+    size_t low = index & ((1 << local_depth) - 1);
+    for (size_t i = 0; i < dir_.size(); i++) {
+      if ((low ^ (i & ((1 << local_depth) - 1))) == 0) {
+        if (((i >> local_depth) & 1) == 1) {
+          dir_[i] = b;
         }
       }
     }
-  }
-  // 获取目标桶的下标
-  auto index = IndexOf(key);
-  auto target_bucket = dir_[index];
-
-  // 扫描桶找到key对应的value更新value
-  for (auto &it : target_bucket->GetItems()) {
-    if (it.first == key) {
-      it.second = value;
-      return;
+    auto it = list.begin();
+    for (; it != list.end(); it++) {
+      dir_[IndexOf(it->first)]->Insert(it->first, it->second);
     }
   }
-  // 不存在，直接插入
-  target_bucket->Insert(key, value);
 }
 
 //===--------------------------------------------------------------------===//
@@ -175,14 +150,16 @@ auto ExtendibleHashTable<K, V>::Bucket::Remove(const K &key) -> bool {
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Insert(const K &key, const V &value) -> bool {
+  for (auto it = list_.begin(); it != list_.end(); ++it) {
+    if (it->first == key) {
+      it->second = value;
+      return true;
+    }
+  }
   if (IsFull()) {
     return false;
   }
-  auto it = std::find_if(list_.begin(), list_.end(), [&](const auto &pair) { return pair.first == key; });
-  if (it != list_.end()) {
-    return false;
-  }
-  list_.emplace_back(key, value);
+  list_.push_back(std::pair<K, V>(key, value));
   return true;
 }
 

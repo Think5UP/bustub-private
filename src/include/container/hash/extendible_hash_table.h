@@ -128,6 +128,8 @@ class ExtendibleHashTable : public HashTable<K, V> {
 
     inline auto GetItems() -> std::list<std::pair<K, V>> & { return list_; }
 
+    inline auto Clear() -> void { list_.clear(); }
+
     /**
      *
      * TODO(P1): Add implementation
