@@ -188,6 +188,7 @@ auto BPLUSTREE_TYPE::UnlockAndUnpin(bustub::Transaction *transaction, bustub::Op
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
   Page *leaf_page = FindLeafPage(key, transaction, INSERT);
+  std::cout << __FUNCTION__ << "[" << __LINE__ << "]" << "key=" << key <<" " << "value=" << value << std::endl;
   // 如果是空树那就需要对树进行加锁然后构建出节点
   while (leaf_page == nullptr) {
     latch_.lock();
@@ -226,6 +227,10 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     buffer_pool_manager_->UnpinPage(brother_page->GetPageId(), true);
     UnlockAndUnpin(transaction, INSERT);
   }
+  for (int i = 0; i < leaf_node->GetSize(); ++i) {
+    std::cout << leaf_node->ValueAt(i) << " ";
+  }
+  std::cout << std::endl;
   UnlockAndUnpin(transaction, INSERT);
   return true;
 }
