@@ -262,13 +262,13 @@ auto BPLUSTREE_TYPE::InsertInParent(bustub::Page *leaf_page, const KeyType &key,
     buffer_pool_manager_->UnpinPage(parent_id, true);
     return;
   }
-  page_id_t page_parent_bother_id;
-  Page *page_parent_bother = buffer_pool_manager_->NewPage(&page_parent_bother_id);
+  page_id_t parent_bother_page_id;
+  Page *page_parent_bother = buffer_pool_manager_->NewPage(&parent_bother_page_id);
   auto parent_bother_node = reinterpret_cast<InternalPage *>(page_parent_bother->GetData());
-  parent_bother_node->Init(page_parent_bother_id, INVALID_PAGE_ID, internal_max_size_);
+  parent_bother_node->Init(parent_bother_page_id, INVALID_PAGE_ID, internal_max_size_);
   parent_node->Split(key, brother_page, page_parent_bother, comparator_, buffer_pool_manager_);
   InsertInParent(parent_page, parent_bother_node->KeyAt(0), page_parent_bother, transaction);
-  buffer_pool_manager_->UnpinPage(page_parent_bother_id, true);
+  buffer_pool_manager_->UnpinPage(parent_bother_page_id, true);
   buffer_pool_manager_->UnpinPage(parent_id, true);
 }
 
